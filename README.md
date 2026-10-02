@@ -42,7 +42,7 @@ flatpak-builder --user --install --force-clean build-dir dev.maiachess.MaiaChess
 
 Plain `cargo build --release`, no Tauri bundler — installs binary + `.desktop` + metainfo by hand. CI runs this on tag push. `cargo tauri build` works too, for a local AppImage/deb.
 
-On Windows, `cargo tauri build --bundles nsis` produces an installer under `src-tauri/target/release/bundle/nsis/`. CI builds it too. Stockfish isn't auto-downloaded there: install it yourself and put it on PATH or set `STOCKFISH_PATH`.
+On Windows, `cargo tauri build --bundles nsis` produces an installer under `src-tauri/target/release/bundle/nsis/`. CI builds it too. Stockfish is auto-downloaded there too (setup screen → Install Stockfish), or put your own on PATH / set `STOCKFISH_PATH`.
 
 
 ## attributions
