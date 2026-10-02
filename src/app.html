@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maia Chess</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <h1>♞ Maia Chess</h1>
+      <div class="tabBar">
+        <button class="tabBtn active" id="tabBtnPlay" data-tab="play">Play vs Maia3</button>
+        <button class="tabBtn" id="tabBtnAnalyze" data-tab="analyze">Analyze / Practice</button>
+      </div>
+      <div id="status-line">Set up a game to begin.</div>
+      <a href="index.html?manual=1" id="setup-link" title="Setup / engine status">⚙</a>
+    </header>
+
+    <main>
+    <!-- Play tab -->
+    <div class="tabPanel active" id="playTab">
+      <section id="board-wrap" class="boardCol">
+        <div class="materialBar" id="materialTop"></div>
+        <div id="board" aria-label="chess board"></div>
+        <div class="materialBar" id="materialBottom"></div>
+        <div id="promo-picker" class="hidden">
+          <div class="promo-inner">
+            <button data-piece="q" class="promo-btn"><img class="promo-img" alt="queen" /></button>
+            <button data-piece="r" class="promo-btn"><img class="promo-img" alt="rook" /></button>
+            <button data-piece="b" class="promo-btn"><img class="promo-img" alt="bishop" /></button>
+            <button data-piece="n" class="promo-btn"><img class="promo-img" alt="knight" /></button>
+          </div>
+        </div>
+        <div id="board-controls">
+          <button id="flip-btn" title="Flip board (F)">⇅ Flip</button>
+          <button id="resign-btn" title="Resign">🏳 Resign</button>
+          <button id="analyze-this-btn" title="Send this game to the Analyze tab">🔍 Analyze This Game</button>
+        </div>
+        <div class="historyNotice" id="history-notice">
+          <span>Viewing a past position — moves are disabled.</span>
+          <button class="small" id="go-live-btn">Back to current</button>
+        </div>
+      </section>
+
+      <aside id="sidebarLeft" class="sideCol sideLeft">
+        <div class="panel collapsible" id="setup-panel">
+          <h2><span>New game</span><span id="setup-summary"></span></h2>
+
+          <div class="field">
+            <span class="fieldLabel">Play as</span>
+            <div class="segmented" id="side-select" role="radiogroup" aria-label="Play as">
+              <button type="button" role="radio" data-value="white" aria-checked="false">White</button>
+              <button type="button" role="radio" data-value="random" aria-checked="true" class="active">Random</button>
+              <button type="button" role="radio" data-value="black" aria-checked="false">Black</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="fieldLabel">Maia-3 model</span>
+            <div class="inlineRow" style="justify-content:space-between; align-items:center;">
+              <span id="active-model-name">Checking…</span>
+              <a href="index.html?manual=1" class="small">Change…</a>
+            </div>
+            <p class="hint" id="no-model-hint" style="display:none; margin-top:6px;">
+              No Maia-3 model is installed. <a href="index.html?manual=1">Install one on the Setup screen</a> to play.
+            </p>
+          </div>
+
+          <div class="field" id="elo-field">
+            <label>Maia-3 Elo: <span id="elo-value">1500</span>
+              <input type="range" id="elo-slider" min="500" max="2500" step="50" value="1500" />
+            </label>
+            <p class="hint" id="elo-live-hint" style="display:none; margin-top:6px;">Changes apply immediately, mid-game.</p>
+          </div>
+
+          <details id="advanced-settings">
+            <summary id="advanced-summary">Advanced</summary>
+
+            <label>Randomness (Temperature): <span id="temperature-value">1.0</span>
+              <input type="range" id="temperature-slider" min="0" max="1.5" step="0.05" value="1.0" />
+            </label>
+            <p class="hint" style="margin-top:-6px;">0 = always the single best-predicted move. Higher = more human-like variation between games.</p>
+
+            <label>Top-P: <span id="top-p-value">1.0</span>
+              <input type="range" id="top-p-slider" min="0.1" max="1" step="0.05" value="1.0" />
+            </label>
+            <p class="hint" style="margin-top:-6px;">Caps sampling to the top slice of likely moves. 1.0 = no cap.</p>
+
+            <label>Start FEN
+              <div class="inlineRow">
+                <input type="text" id="start-fen-input" placeholder="Leave blank for the standard start position" style="flex:1; min-width:0; font-size:13px; padding:6px 8px; background:var(--panel-bg-2); color:var(--text); border:1px solid var(--border); border-radius:6px;">
+                <button class="small" id="clear-fen-btn" type="button">Standard</button>
+              </div>
+            </label>
+            <div id="fen-error" style="display:none; color:#ff8a8a; font-size:12px; margin:-8px 0 8px;"></div>
+            <div class="btnRow" style="margin-bottom:10px;">
+              <button class="small" id="open-setup-btn" type="button" style="width:100%;">Set Up Position on Board…</button>
+            </div>
+          </details>
+
+          <button id="start-btn" class="primary" title="Shortcut: N">Start game</button>
+          <p class="hint">Runs on ONNX Runtime. First use of a model size may take a moment to prepare.</p>
+        </div>
+      </aside>
+
+      <aside id="sidebar" class="sideCol">
+        <div class="panel" id="moves-panel">
+          <div class="inlineRow" style="justify-content:space-between; margin-bottom:6px;">
+            <h2 style="margin:0;">Moves</h2>
+            <div class="navBtns">
+              <button class="navBtn" id="nav-start" title="First move (Home)">|&laquo;</button>
+              <button class="navBtn" id="nav-prev" title="Previous move (←)">&laquo;</button>
+              <button class="navBtn" id="nav-next" title="Next move (→)">&raquo;</button>
+              <button class="navBtn" id="nav-end" title="Current position (End)">&raquo;|</button>
+            </div>
+          </div>
+          <div id="moves-meta"></div>
+          <ol id="move-list"></ol>
+          <div class="btnRow" style="margin-top:10px;">
+            <button class="small" id="undo-btn" title="Undo (U)">Undo</button>
+            <button class="small" id="copy-pgn-btn">Copy PGN</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Analyze tab -->
+    <div class="tabPanel" id="analyzeTab">
+      <section id="analyze-board-wrap" class="boardCol">
+        <div class="materialBar" id="aMaterialTop"></div>
+        <div id="analyzeBoard" aria-label="analysis board"></div>
+        <div class="materialBar" id="aMaterialBottom"></div>
+        <div id="analyzePromo" class="hidden">
+          <div class="promo-inner">
+            <button data-piece="q" class="promo-btn"><img class="promo-img" alt="queen" /></button>
+            <button data-piece="r" class="promo-btn"><img class="promo-img" alt="rook" /></button>
+            <button data-piece="b" class="promo-btn"><img class="promo-img" alt="bishop" /></button>
+            <button data-piece="n" class="promo-btn"><img class="promo-img" alt="knight" /></button>
+          </div>
+        </div>
+        <div class="btnRow" style="justify-content:center;">
+          <button class="small" id="aFlipBtn" title="Flip board (F)">⇅ Flip</button>
+          <label class="arrowToggle" title="Blue: engine's best move. Red: the move that was played, when it wasn't good. Right-click and drag on the board to draw your own arrows.">
+            <input type="checkbox" id="aArrowToggle" checked> Arrows
+          </label>
+        </div>
+        <div id="variationBar" style="display:none;">
+          <div class="variationHead">
+            <span id="variationTitle"></span>
+            <button class="small" id="variationExitBtn" title="Return to the game position (Esc)">Back to game</button>
+          </div>
+          <div id="variationLine" class="lineMoves"></div>
+        </div>
+        <div class="panel" id="evalGraphBox" style="display:none;">
+          <div id="evalGraphWrap"><svg id="evalGraph"></svg></div>
+          <div id="evalInfo"></div>
+          <div id="evalLine" class="lineMoves"></div>
+          <div id="evalLegend"></div>
+        </div>
+      </section>
+
+      <aside id="analyzeLeft" class="sideCol">
+
+        <div class="panel collapsible" id="loadPanel">
+          <h2>Load a game</h2>
+          <div class="subRow">
+            <textarea id="pgnInput" rows="4" placeholder="Paste a PGN, or a plain movetext string like &#10;1. e4 e5 2. Nf3 Nc6 ..."></textarea>
+          </div>
+          <div class="btnRow">
+            <button id="loadGameBtn" class="primary" style="flex:1;">Load Game</button>
+          </div>
+          <div id="loadError" style="color:#ff8a8a; font-size:12.5px; margin-top:6px;"></div>
+        </div>
+
+        <div class="panel collapsible" id="analyzeControlsPanel">
+          <h2>Analyze</h2>
+          <div class="subRow">
+            <label for="analyzeSideSelect">Grade whose moves</label>
+            <select id="analyzeSideSelect">
+              <option value="both" selected>Both sides</option>
+              <option value="white">White only</option>
+              <option value="black">Black only</option>
+            </select>
+          </div>
+          <div class="subRow">
+            <label for="analyzeDepthSelect">Depth</label>
+            <select id="analyzeDepthSelect">
+              <option value="10">10 — fast</option>
+              <option value="14" selected>14 — balanced</option>
+              <option value="18">18 — thorough</option>
+            </select>
+          </div>
+          <button id="analyzeGameBtn" class="primary" disabled>Analyze Game</button>
+          <div id="analyzeStatus" class="hint" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="panel listCollapsed" id="flaggedPanel" style="display:none;">
+          <h2 id="flaggedHeading"><span>Flagged moves <span id="flaggedCount" class="hint"></span></span></h2>
+          <div id="flaggedList"></div>
+          <div class="inlineRow" id="practiceSideRow" style="display:none; margin-top:10px;">
+            <label for="practiceSideSelect" style="font-size:12.5px; color:var(--muted);">Practice side</label>
+            <select id="practiceSideSelect">
+              <option value="both">Both</option>
+              <option value="white">White's mistakes</option>
+              <option value="black">Black's mistakes</option>
+            </select>
+          </div>
+          <button id="practiceBtn" class="primary" style="display:none; margin-top:8px;">Practice My Mistakes →</button>
+        </div>
+
+        <div class="panel" id="puzzlePanelV2">
+          <h2>Practice</h2>
+          <div id="puzzleProgressV2"></div>
+          <div id="puzzlePromptV2"></div>
+          <div id="puzzleFeedbackV2"></div>
+          <div class="btnRow" id="puzzleActiveActions">
+            <button class="small" id="puzzleBackBtn" style="display:none;">↩ Back to my puzzle</button>
+            <button class="small" id="puzzleRevealBtn">Reveal Answer</button>
+            <button class="small" id="puzzleNextBtn" style="display:none;">Next puzzle →</button>
+            <button class="small" id="puzzleExitBtn">Exit Practice</button>
+          </div>
+          <div class="btnRow" id="puzzleDoneActions" style="display:none;">
+            <button class="small" id="puzzleRestartBtn">Practice Again</button>
+            <button class="small" id="puzzleExitBtn2">Back to Review</button>
+          </div>
+        </div>
+
+        <div class="panel" id="moveListPanel" style="display:none;">
+          <div class="inlineRow" style="justify-content:space-between;">
+            <h2 style="margin:0;">Moves</h2>
+            <div class="navBtns">
+              <button class="navBtn" id="aNavStart" title="First move (Home)">|&laquo;</button>
+              <button class="navBtn" id="aNavPrev" title="Previous move (←)">&laquo;</button>
+              <button class="navBtn" id="aNavNext" title="Next move (→)">&raquo;</button>
+              <button class="navBtn" id="aNavEnd" title="Current / end position (End)">&raquo;|</button>
+            </div>
+          </div>
+          <div id="analyzeMoveList"></div>
+        </div>
+      </aside>
+
+      <aside id="analyzeSidebar" class="sideCol sideLeft">
+
+        <div class="panel" id="enginePanel">
+          <div class="engHead">
+            <label class="engSwitch" title="Stockfish evaluates the position on the board. Move pieces to try your own lines."><input type="checkbox" id="engEnable"> Engine</label>
+            <div class="engOpts">
+              <select id="engLines" title="Lines shown">
+                <option value="1">1 line</option>
+                <option value="2">2 lines</option>
+                <option value="3" selected>3 lines</option>
+              </select>
+            </div>
+          </div>
+          <div id="engNote" class="hint"></div>
+          <div id="engBody" style="display:none;">
+            <div class="engSummary">
+              <span id="engScore" class="engChip engScore">0.00</span>
+              <div class="engBar"><i id="engBarFill"></i></div>
+              <span id="engStatus" class="engStatus"></span>
+            </div>
+            <div id="engList"></div>
+            <label class="arrowToggle engFoot"><input type="checkbox" id="engArrows" checked> Arrows for each line on board</label>
+          </div>
+        </div>
+
+        <div class="panel" id="humanPanel" style="display:none;">
+          <h2>Human insights</h2>
+          <div class="inlineRow" style="justify-content:space-between;">
+            <label class="arrowToggle"><input type="checkbox" id="hiEnable"> Enable</label>
+            <select id="hiRating" title="Rating of the player Maia imitates"></select>
+          </div>
+          <div id="hiStatus" class="hint"></div>
+          <div id="hiBody" style="display:none;">
+            <div id="hiSummary"></div>
+            <div id="hiMeter"></div>
+            <div id="hiMeterLegend"></div>
+            <div id="hiMoves"></div>
+            <details id="hiChartBox">
+              <summary class="hiTitle">Moves by rating</summary>
+              <svg id="hiChart" viewBox="0 0 320 150"></svg>
+              <div id="hiChartLegend"></div>
+            </details>
+            <label class="arrowToggle" style="margin-top:8px;"><input type="checkbox" id="hiArrows" checked> <i class="hiSwatch"></i> Two likeliest human moves on board</label>
+          </div>
+
+          <h3 class="hiTitle">Rating estimate</h3>
+          <button class="small" id="hiEstimateBtn">Estimate from this game</button>
+          <div id="hiEstimateStatus" class="hint"></div>
+          <div id="hiEstimate" style="display:none;">
+            <div id="hiEstimateCards"></div>
+            <svg id="hiEstimateChart" viewBox="0 0 320 130"></svg>
+            <div id="hiEstimateLegend"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    </main>
+  </div>
+
+  <!-- Position editor overlay -->
+  <div id="setup-overlay">
+    <div class="setupCard">
+      <h2>Set Up Position</h2>
+      <div class="tray" id="trayWhite"></div>
+      <div id="editor-board"></div>
+      <div class="tray" id="trayBlack"></div>
+      <div class="subRow" style="margin-top:6px;">
+        <label for="editorTurnSelect">Side to move</label>
+        <select id="editorTurnSelect">
+          <option value="w">White</option>
+          <option value="b">Black</option>
+        </select>
+      </div>
+      <div class="castleRow">
+        <label><input type="checkbox" id="castleWK" checked> White O-O</label>
+        <label><input type="checkbox" id="castleWQ" checked> White O-O-O</label>
+        <label><input type="checkbox" id="castleBK" checked> Black O-O</label>
+        <label><input type="checkbox" id="castleBQ" checked> Black O-O-O</label>
+      </div>
+      <div id="fenPreview"></div>
+      <div id="editorError"></div>
+      <p class="hint" style="margin:0 0 10px;">
+        Drag pieces from the trays onto the board, drag a board piece to move
+        it, or drag it off the board to remove it. Click a board piece to
+        remove it too.
+      </p>
+      <div class="btnRow">
+        <button class="small" id="editorStandardBtn" type="button">Standard Position</button>
+        <button class="small" id="editorClearBtn" type="button">Clear Board</button>
+      </div>
+      <div class="btnRow" style="margin-top:12px;">
+        <button id="editorApplyBtn" type="button">Use This Position</button>
+        <button class="small" id="editorCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

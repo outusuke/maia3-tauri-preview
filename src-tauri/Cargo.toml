@@ -1,0 +1,33 @@
+[package]
+name = "maia-chess"
+version = "0.1.0"
+description = "A simple Lichess-style chess GUI that plays against the Maia-3 human-like engine"
+authors = ["you"]
+license = "GPL-3.0-only"
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Handles legality, check/mate/stalemate and FEN, so it's the single source of truth for the rules.
+chess = "3.2"
+# Downloads the prebuilt Stockfish in setup.rs.
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+tar = "0.4"
+# Stockfish 19+ release assets are .tar.gz.
+flate2 = "1"
+
+[[bin]]
+name = "maia-chess"
+path = "src/main.rs"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"

@@ -1,0 +1,47 @@
+app-id: dev.maiachess.MaiaChess
+# GNOME runtime rather than freedesktop because it ships WebKitGTK, which Tauri needs.
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: maia-chess
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/maia-chess/cargo-home
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # The HF checkpoint is deleted after export and lands in Flatpak's private XDG_CACHE_HOME, so no host filesystem access is needed.
+  - --share=network
+  # No Tauri bundler here (plain cargo build), so nothing copies src-tauri/resources; setup.rs reads this override instead.
+  - --env=MAIA3_RESOURCES_DIR=/app/lib/maia-chess/resources
+
+modules:
+  - name: maia-chess-gui
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network # cargo fetches crates.io deps
+    build-commands:
+      - cargo build --release --manifest-path src-tauri/Cargo.toml
+      - install -Dm755 src-tauri/target/release/maia-chess /app/bin/maia-chess
+      - install -Dm644 src-tauri/icons/icon.png
+          /app/share/icons/hicolor/512x512/apps/dev.maiachess.MaiaChess.png
+      - install -Dm644 dev.maiachess.MaiaChess.desktop
+          /app/share/applications/dev.maiachess.MaiaChess.desktop
+      - install -Dm644 dev.maiachess.MaiaChess.metainfo.xml
+          /app/share/metainfo/dev.maiachess.MaiaChess.metainfo.xml
+      # Installed by hand because plain cargo build doesn't bundle resources; MAIA3_RESOURCES_DIR points the GUI here.
+      - install -Dm644 src-tauri/resources/export_maia3_onnx.py
+          /app/lib/maia-chess/resources/export_maia3_onnx.py
+      - install -Dm644 src-tauri/resources/maia3_onnx_uci.py
+          /app/lib/maia-chess/resources/maia3_onnx_uci.py
+    sources:
+      - type: dir
+        path: .

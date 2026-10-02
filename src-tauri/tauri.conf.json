@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Maia Chess",
+  "version": "0.1.0",
+  "identifier": "dev.maiachess.maiachess",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Maia Chess",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 760,
+        "minHeight": 560,
+        "resizable": true,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["appimage", "deb", "nsis"],
+    "category": "Game",
+    "shortDescription": "Play chess against the human-like Maia-3 engine",
+    "longDescription": "A simple, Lichess-inspired chess GUI. Plays locally against the Maia-3 (CSSLab) human-like UCI chess engine at a chosen Elo.",
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "resources": ["resources/*"],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  }
+}

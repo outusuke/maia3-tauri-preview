@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Maia3 Chess</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; gap: 1.5rem;
+    background: #16181d; color: #e7e9ee;
+    font: 15px/1.5 -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    padding: 2rem; box-sizing: border-box;
+  }
+  .page { width: min(680px, 100%); display: flex; flex-direction: column; gap: 1.5rem; }
+  .titleRow { display: flex; align-items: center; gap: 10px; margin-bottom: -0.75rem; }
+  .titleRow h1 { font-size: 1.4rem; margin: 0; }
+  p.sub { color: #9aa0ab; margin: 0; max-width: 34rem; }
+  section h2 { font-size: 1rem; margin: 0 0 2px; }
+  section p.desc { font-size: 0.82rem; color: #9aa0ab; margin: 0 0 12px; }
+
+  .modelGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .card {
+    background: #1b1e24; border: 1px solid #2a2d35; border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .modelCard { display: flex; flex-direction: column; }
+  .modelCard .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .modelCard .name { font-weight: 600; font-size: 0.95rem; margin: 0; }
+  .modelCard .kind { font-size: 0.78rem; color: #9aa0ab; margin: 2px 0 0; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+  .badge.ready { background: #163a2a; color: #59d18a; }
+  .modelCard .meta { font-size: 0.76rem; color: #6c7280; margin: 10px 0 12px; }
+  .modelCard .useForPlay {
+    display: none; align-items: center; gap: 6px; font-size: 0.78rem; color: #9aa0ab;
+    margin: 0 0 10px; cursor: pointer;
+  }
+  .modelCard .useForPlay input { accent-color: #3b6ef2; margin: 0; }
+  .modelCard button { margin-top: auto; }
+
+  .stockfishCard { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .stockfishCard .info { display: flex; align-items: center; gap: 10px; }
+  .stockfishCard .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .stockfishCard .dot.ready { background: #59d18a; }
+  .stockfishCard .dot.notready { background: #6c7280; }
+  .stockfishCard .name { font-weight: 600; font-size: 0.9rem; margin: 0; }
+  .stockfishCard .meta { font-size: 0.78rem; color: #9aa0ab; margin: 2px 0 0; }
+
+  button {
+    background: #3b6ef2; color: white; border: none; border-radius: 8px;
+    padding: 0.55rem 1.1rem; font-size: 0.88rem; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.secondary { background: #2a2d35; color: #cfd3da; }
+  button.danger { background: #2a2d35; color: #f0a0a0; }
+  button.danger:hover:not(:disabled) { background: #3a2828; }
+  button.ghost { background: none; color: #9aa0ab; padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+
+  .footer {
+    border-top: 1px solid #2a2d35; padding-top: 14px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .footer .diskUsage { font-size: 0.78rem; color: #6c7280; }
+  .footer .actions { display: flex; gap: 10px; }
+
+  pre#log {
+    width: 100%; box-sizing: border-box; height: 200px; overflow-y: auto;
+    background: #0e0f13; border: 1px solid #2a2d35; border-radius: 8px;
+    padding: 0.75rem; font-size: 0.78rem; color: #9aa0ab; white-space: pre-wrap; margin: 0;
+  }
+  #tasks { display: flex; flex-direction: column; gap: 10px; }
+  #tasks:empty { display: none; }
+  .task { background: #1b1e24; border: 1px solid #2a2d35; border-radius: 12px; padding: 12px 14px; }
+  .taskHead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .taskTitle { font-size: 0.85rem; font-weight: 600; }
+  .taskPct { font-size: 0.85rem; font-variant-numeric: tabular-nums; color: #cfd3da; }
+  .taskStep { font-size: 0.8rem; color: #9aa0ab; margin: 2px 0 8px; display: flex;
+    justify-content: space-between; gap: 12px; }
+  .taskStep .detail { color: #6c7280; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .bar { position: relative; height: 8px; background: #0e0f13; border-radius: 99px; overflow: hidden; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: #3b6ef2;
+    border-radius: 99px; transition: width .25s ease; }
+  /* Animated stripes = "this step is working but can't report a number". */
+  .bar .active {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 0;
+    background: repeating-linear-gradient(-45deg, #2c4a9a 0 8px, #3b6ef2 8px 16px);
+    background-size: 22.6px 22.6px; animation: barslide 0.8s linear infinite;
+    transition: left .25s ease, width .25s ease; opacity: .75;
+  }
+  .task.done .bar .fill { background: #59d18a; }
+  .task.failed .bar .fill { background: #e5534b; }
+  .task.done .bar .active, .task.failed .bar .active { display: none; }
+  @keyframes barslide { to { background-position: 22.6px 0; } }
+  .steps { list-style: none; margin: 10px 0 0; padding: 0; font-size: 0.78rem; color: #6c7280; }
+  .steps li { display: flex; gap: 8px; align-items: center; padding: 1px 0; }
+  .steps li .mark { width: 1em; text-align: center; flex: none; }
+  .steps li.done { color: #59d18a; }
+  .steps li.running { color: #e7e9ee; }
+  .steps li.failed { color: #e5534b; }
+  .spin { display: inline-block; width: .8em; height: .8em; border: 2px solid #3b6ef2;
+    border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .taskNote { font-size: 0.76rem; color: #6c7280; margin-top: 8px; }
+  .taskError { font-size: 0.78rem; color: #e5534b; margin-top: 8px; white-space: pre-wrap; }
+  details.logWrap summary { cursor: pointer; font-size: 0.8rem; color: #9aa0ab; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="titleRow">
+    <h1>♞ Maia3 Chess</h1>
+  </div>
+  <p class="sub">
+    Play a local Maia-3 engine and, optionally, grade your games with Stockfish.
+    Maia-3 runs on ONNX Runtime — a light, fast-starting engine with no
+    PyTorch to install or keep around.
+  </p>
+
+  <section>
+    <h2>Maia-3 models</h2>
+    <p class="desc">Install any size you want to play against — each is independent, and the Play tab lets you pick between whichever ones you have.</p>
+    <div class="modelGrid" id="modelGrid"></div>
+  </section>
+
+  <section>
+    <h2>Stockfish</h2>
+    <p class="desc">Powers move grading on the Analyze / Practice tab. Optional — you can play against Maia-3 without it.</p>
+    <div class="card stockfishCard" id="stockfishCard">
+      <div class="info">
+        <span class="dot" id="stockfishDot"></span>
+        <div>
+          <p class="name" id="stockfishName">Checking…</p>
+          <p class="meta" id="stockfishMeta"></p>
+        </div>
+      </div>
+      <button id="stockfishBtn" class="secondary" disabled>…</button>
+    </div>
+  </section>
+
+  <div id="tasks" aria-live="polite"></div>
+
+  <details class="logWrap">
+    <summary>Details</summary>
+    <pre id="log"></pre>
+  </details>
+
+  <div class="footer">
+    <span class="diskUsage" id="diskUsage"></span>
+    <div class="actions">
+      <button id="launchBtn" class="secondary">Launch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const { listen } = window.__TAURI__.event;
+
+  const MODELS = [
+    { id: "maia3-5m", name: "5M", kind: "Fast, CPU-friendly", approxSize: "~90 MB" },
+    { id: "maia3-23m", name: "23M", kind: "More accurate", approxSize: "~340 MB" },
+    { id: "maia3-79m", name: "79M", kind: "Most accurate, slower", approxSize: "~1.1 GB" },
+  ];
+
+  const modelGrid = document.getElementById("modelGrid");
+  const logEl = document.getElementById("log");
+  const launchBtn = document.getElementById("launchBtn");
+  const diskUsageEl = document.getElementById("diskUsage");
+  const sf = {
+    card: document.getElementById("stockfishCard"),
+    dot: document.getElementById("stockfishDot"),
+    name: document.getElementById("stockfishName"),
+    meta: document.getElementById("stockfishMeta"),
+    btn: document.getElementById("stockfishBtn"),
+  };
+
+  function fmtBytes(n) {
+    if (!n) return "";
+    if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+    if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(0)} MB`;
+    return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+
+  function log(line) {
+    logEl.textContent += line + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  listen("setup-log", (e) => log(e.payload));
+
+  // Only one install/remove runs at a time; every button disables while any of them is busy.
+  let busy = false;
+  const modelCards = {};
+
+  for (const model of MODELS) {
+    const card = document.createElement("div");
+    card.className = "card modelCard";
+    card.innerHTML = `
+      <div class="head">
+        <div>
+          <p class="name">${model.name}</p>
+          <p class="kind">${model.kind}</p>
+        </div>
+        <span class="badge ready" style="display:none;">Installed</span>
+      </div>
+      <p class="meta"></p>
+      <label class="useForPlay" style="display:none;">
+        <input type="radio" name="activeModel" value="${model.id}">
+        Use for play
+      </label>
+      <button></button>`;
+    modelGrid.appendChild(card);
+    modelCards[model.id] = {
+      root: card,
+      badge: card.querySelector(".badge"),
+      meta: card.querySelector(".meta"),
+      btn: card.querySelector("button"),
+      useLabel: card.querySelector(".useForPlay"),
+      useRadio: card.querySelector("input"),
+    };
+    modelCards[model.id].useRadio.addEventListener("change", () => setActiveModel(model.id));
+  }
+
+  // Wrapped since localStorage can throw (privacy mode, disabled storage); shouldn't take the screen down.
+  const activeModelStore = {
+    get() { try { return localStorage.getItem("maia3.activeModel"); } catch { return null; } },
+    set(v) { try { localStorage.setItem("maia3.activeModel", v); } catch {} },
+    clear() { try { localStorage.removeItem("maia3.activeModel"); } catch {} },
+  };
+
+  // Falls back to an installed model so this screen and the Play tab can't disagree about what's active.
+  function resolveActiveModel(readyIds) {
+    const stored = activeModelStore.get();
+    const active = (stored && readyIds.includes(stored)) ? stored : (readyIds[0] || null);
+    if (active) activeModelStore.set(active);
+    else activeModelStore.clear();
+    return active;
+  }
+
+  function setActiveModel(id) {
+    activeModelStore.set(id);
+    refreshStatus();
+  }
+
+  function renderModels(status) {
+    const active = resolveActiveModel(status.onnxModelsReady);
+    for (const model of MODELS) {
+      const ui = modelCards[model.id];
+      const ready = status.onnxModelsReady.includes(model.id);
+      const bytes = status.onnxModelBytes[model.id];
+      ui.badge.style.display = ready ? "" : "none";
+      ui.meta.textContent = ready
+        ? `${fmtBytes(bytes)} on disk`
+        : `Not installed · ${model.approxSize}`;
+      ui.btn.className = ready ? "danger" : "";
+      ui.btn.innerHTML = ready ? "Remove" : "Install";
+      ui.btn.disabled = busy;
+      ui.btn.onclick = () => (ready ? removeModel(model) : installModel(model));
+      ui.useLabel.style.display = ready ? "flex" : "none";
+      ui.useRadio.checked = ready && model.id === active;
+      ui.useRadio.disabled = busy;
+    }
+  }
+
+  function renderStockfish(status) {
+    sf.dot.className = "dot " + (status.stockfishReady ? "ready" : "notready");
+    if (status.stockfishReady) {
+      sf.name.textContent = "Installed";
+      sf.meta.textContent = status.stockfishIsDownloaded
+        ? `${fmtBytes(status.stockfishBytes)} on disk`
+        : `Found on this system (${status.stockfishPath})`;
+    } else if (status.flatpak) {
+      sf.name.textContent = "Not installed";
+      sf.meta.textContent = "Not visible inside this Flatpak sandbox — Install downloads a copy the app can use.";
+    } else {
+      sf.name.textContent = "Not installed";
+      sf.meta.textContent = "Not found on PATH or in the usual install locations.";
+    }
+    if (status.stockfishReady && status.stockfishIsDownloaded) {
+      sf.btn.className = "danger";
+      sf.btn.textContent = "Remove";
+      sf.btn.onclick = removeStockfish;
+    } else if (status.stockfishReady) {
+      // A system Stockfish is in use; nothing of ours to remove.
+      sf.btn.className = "secondary";
+      sf.btn.textContent = "In use";
+      sf.btn.onclick = null;
+    } else {
+      sf.btn.className = "";
+      sf.btn.textContent = "Install";
+      sf.btn.onclick = installStockfish;
+    }
+    sf.btn.disabled = busy || (status.stockfishReady && !status.stockfishIsDownloaded);
+  }
+
+  function renderDiskUsage(status) {
+    const total = Object.values(status.onnxModelBytes).reduce((a, b) => a + b, 0)
+      + (status.stockfishIsDownloaded ? status.stockfishBytes || 0 : 0);
+    diskUsageEl.textContent = total ? `${fmtBytes(total)} used on disk` : "";
+  }
+
+  async function refreshStatus() {
+    try {
+      const status = await invoke("setup_status");
+      renderModels(status);
+      renderStockfish(status);
+      renderDiskUsage(status);
+    } catch (err) {
+      log("!! Could not read setup status: " + err);
+    }
+  }
+
+  // Skip straight to the app once a model is ready; the gear icon's ?manual=1 opts back into this screen.
+  async function redirectIfAlreadySetUp() {
+    if (new URLSearchParams(location.search).has("manual")) return false;
+    try {
+      const status = await invoke("setup_status");
+      if (status.onnxModelsReady && status.onnxModelsReady.length > 0) {
+        window.location.replace("app.html");
+        return true;
+      }
+    } catch (err) {
+      // Fall through to showing the setup screen normally.
+    }
+    return false;
+  }
+
+  function setBusy(v) {
+    busy = v;
+    launchBtn.disabled = v;
+    refreshStatus();
+  }
+
+  async function installModel(model) {
+    setBusy(true);
+    log(`==> Installing Maia-3 (${model.id})...`);
+    try {
+      await invoke("run_onnx_setup", { model: model.id });
+      log(`Maia-3 (${model.id}): ready.`);
+    } catch (err) {
+      log(`!! Maia-3 (${model.id}) setup failed: ${err}`);
+    }
+    setBusy(false);
+  }
+
+  async function removeModel(model) {
+    if (!window.confirm(`Remove the ${model.name} model? You can reinstall it any time.`)) return;
+    setBusy(true);
+    log(`==> Removing Maia-3 (${model.id})...`);
+    try {
+      await invoke("remove_onnx_model", { model: model.id });
+      log(`Maia-3 (${model.id}): removed.`);
+    } catch (err) {
+      log(`!! Could not remove ${model.id}: ${err}`);
+    }
+    setBusy(false);
+  }
+
+  async function installStockfish() {
+    setBusy(true);
+    log("==> Installing Stockfish...");
+    try {
+      await invoke("install_stockfish");
+      log("Stockfish: ready.");
+    } catch (err) {
+      log("!! Stockfish setup failed: " + err);
+    }
+    setBusy(false);
+  }
+
+  async function removeStockfish() {
+    if (!window.confirm("Remove the downloaded Stockfish? You can reinstall it any time.")) return;
+    setBusy(true);
+    log("==> Removing Stockfish...");
+    try {
+      await invoke("remove_stockfish");
+      log("Stockfish: removed.");
+    } catch (err) {
+      log("!! Could not remove Stockfish: " + err);
+    }
+    setBusy(false);
+  }
+
+  // Steps that can't report a number show striped "working" bars plus a running clock, not a fake percentage.
+  const tasksEl = document.getElementById("tasks");
+  const TASK_TITLES = { maia: "Maia-3 engine", stockfish: "Stockfish" };
+  const taskUI = {};   // task id -> { root, ..., lastIndex, stepStart, startedAt, state }
+
+  function fmtClock(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+
+  function ensureTaskUI(id) {
+    if (taskUI[id]) return taskUI[id];
+    const root = document.createElement("div");
+    root.className = "task";
+    root.innerHTML = `
+      <div class="taskHead"><span class="taskTitle"></span><span class="taskPct">0%</span></div>
+      <div class="taskStep"><span class="stepLabel"></span><span class="detail"></span></div>
+      <div class="bar"><div class="fill"></div><div class="active"></div></div>
+      <ul class="steps"></ul>
+      <div class="taskNote"></div>
+      <div class="taskError" hidden></div>`;
+    root.querySelector(".taskTitle").textContent = TASK_TITLES[id] || id;
+    tasksEl.appendChild(root);
+    const ui = {
+      root,
+      pct: root.querySelector(".taskPct"),
+      stepLabel: root.querySelector(".stepLabel"),
+      detail: root.querySelector(".detail"),
+      fill: root.querySelector(".fill"),
+      active: root.querySelector(".active"),
+      steps: root.querySelector(".steps"),
+      note: root.querySelector(".taskNote"),
+      error: root.querySelector(".taskError"),
+      lastIndex: -1, stepStart: Date.now(), startedAt: Date.now(), state: "running",
+    };
+    taskUI[id] = ui;
+    return ui;
+  }
+
+  function renderProgress(p) {
+    const ui = ensureTaskUI(p.task);
+    const total = p.weights.reduce((a, b) => a + b, 0) || 1;
+    const before = p.weights.slice(0, p.index).reduce((a, b) => a + b, 0);
+    const stepW = (p.weights[p.index] || 0);
+    const fillPct = Math.min(100, p.overall);
+
+    if (p.index !== ui.lastIndex) { ui.lastIndex = p.index; ui.stepStart = Date.now(); }
+    ui.state = p.state;
+    ui.root.classList.toggle("done", p.state === "done");
+    ui.root.classList.toggle("failed", p.state === "failed");
+
+    ui.fill.style.width = fillPct + "%";
+    const activeEnd = ((before + stepW) / total) * 100;
+    ui.active.style.left = fillPct + "%";
+    ui.active.style.width = p.state === "running" ? Math.max(0, activeEnd - fillPct) + "%" : "0";
+
+    ui.pct.textContent = Math.floor(fillPct) + "%";
+    ui.detail.textContent = p.detail && p.state !== "failed" ? p.detail : "";
+
+    if (p.state === "done") {
+      ui.stepLabel.textContent = "Done";
+    } else if (p.state === "failed") {
+      ui.stepLabel.textContent = `Failed at step ${p.index + 1} of ${p.steps.length}: ${p.steps[p.index] || ""}`;
+    } else {
+      ui.stepLabel.textContent = `Step ${p.index + 1} of ${p.steps.length}: ${p.steps[p.index]}`;
+    }
+
+    ui.steps.innerHTML = "";
+    p.steps.forEach((label, i) => {
+      const li = document.createElement("li");
+      let cls = "pending", mark = "○";
+      if (p.state === "done" || i < p.index) { cls = "done"; mark = "✓"; }
+      else if (i === p.index) {
+        if (p.state === "failed") { cls = "failed"; mark = "✕"; }
+        else { cls = "running"; mark = '<span class="spin"></span>'; }
+      }
+      li.className = cls;
+      li.innerHTML = `<span class="mark">${mark}</span><span></span>`;
+      li.lastChild.textContent = label;
+      ui.steps.appendChild(li);
+    });
+
+    if (p.state === "failed" && p.detail) {
+      ui.error.hidden = false;
+      ui.error.textContent = p.detail;
+    } else {
+      ui.error.hidden = true;
+    }
+    updateClocks();
+  }
+
+  function updateClocks() {
+    const now = Date.now();
+    for (const ui of Object.values(taskUI)) {
+      if (ui.state === "running") {
+        ui.note.textContent =
+          `Working… ${fmtClock(now - ui.stepStart)} on this step · ${fmtClock(now - ui.startedAt)} total. ` +
+          `Large downloads can sit at one step for a few minutes.`;
+      } else if (ui.state === "done") {
+        ui.note.textContent = `Finished in ${fmtClock(ui.finishedAfter ?? (now - ui.startedAt))}.`;
+        ui.finishedAfter = ui.finishedAfter ?? (now - ui.startedAt);
+      } else {
+        ui.note.textContent = "";
+      }
+    }
+  }
+  setInterval(updateClocks, 1000);
+  listen("setup-progress", (e) => renderProgress(e.payload));
+
+  launchBtn.addEventListener("click", () => {
+    // Same bundled frontend, so there's no server to start; just navigate.
+    window.location.replace("app.html");
+  });
+
+  redirectIfAlreadySetUp().then((redirected) => { if (!redirected) refreshStatus(); });
+</script>
+</body>
+</html>

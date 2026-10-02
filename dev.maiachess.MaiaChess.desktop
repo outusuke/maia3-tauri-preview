@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Maia Chess
+Comment=Play chess against the human-like Maia-3 engine
+Exec=maia-chess
+Icon=dev.maiachess.MaiaChess
+Terminal=false
+Categories=Game;BoardGame;
+StartupWMClass=maia-chess

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.maiachess.MaiaChess</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>Maia Chess</name>
+  <summary>Play chess against the human-like Maia-3 engine</summary>
+  <description>
+    <p>
+      A simple, Lichess-inspired chess GUI built with Tauri. Play locally
+      against Maia-3 (CSSLab), a chess engine trained to predict human moves
+      at a chosen Elo rating, instead of a maximum-strength search engine.
+    </p>
+  </description>
+  <launchable type="desktop-id">dev.maiachess.MaiaChess.desktop</launchable>
+  <categories>
+    <category>Game</category>
+    <category>BoardGame</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <url type="homepage">https://github.com/CSSLab/maia3</url>
+  <releases>
+    <release version="0.1.0" date="2026-09-22">
+      <description><p>Initial release.</p></description>
+    </release>
+  </releases>
+</component>
